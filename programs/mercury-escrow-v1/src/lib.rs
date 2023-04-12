@@ -2,60 +2,35 @@ use anchor_lang::prelude::*;
 
 declare_id!("AtpSWqNSWAJDt67VJWSJH62XRJARt35a3aJbskJBsMng");
 
+#[constant]
+pub const USER_SEED: &[u8] = b"user";
+
 #[program]
 mod mercury_v1 {
     use super::*;
 
     // When user A connects his wallet
     // Maybe here we need to fetch the nft collection from user A
-    pub fn init_user_a(ctx: Context<InitUserA>) -> Result<()> {
-        let main_account = &mut ctx.accounts.main_account;
+    pub fn init_user(ctx: Context<InitUser>) -> Result<()> {
+        let user_account = &mut ctx.accounts.user_account;
         let authority = &mut ctx.accounts.authority;
 
-        main_account.authority = authority.key();
+        user_account.authority = authority.key();
 
    
     Ok(())
     }
 
     // When user A introduces the user B wallet
+    // I think here should it be all the parameters (user A address, user B address, nft A, nft B, token amount)
     // Maybe here we should fetch the nft collection from user B
-    pub fn wallet_user_b(ctx: Context<WalletUserB>) -> Result <()> {
-        let account_user_b = &mut ctx.accounts.account_user_b;
+    pub fn input_trade_info(ctx: Context<InputTradeInfo>, user_b_address: String, nft_a: String, nft_b: String, token: String, token_amount: u16) -> Result <()> {
+        let trade_info_account = &mut ctx.accounts.trade_info_account; // check?
+        let user_account = &mut ctx.accounts.user_account;
         let authority = &mut ctx.accounts.authority;
 
-        account_user_b.authority = authority.key();
-
-    Ok(())
-    }
-
-    // When user A selects the user B NFT
-    pub fn selected_nft_from_b(ctx: Context<SelectedNftFromB>) -> Result <()> {
-        let nft_from_b = &mut ctx.accounts.nft_from_b;
-        let authority = &mut ctx.accounts.authority;
-
-        nft_from_b.authority = authority.key();
-
-    Ok(())
-    }
-
-    // When user A selects his NFT
-    pub fn selected_nft_from_a(ctx: Context<SelectedNftFromA>) -> Result <()> {
-        let nft_from_a = &mut ctx.accounts.nft_from_a;
-        let authority = &mut ctx.accounts.authority;
-
-        nft_from_a.authority = authority.key();
-
-    Ok(())
-    }
-
-    // When user A selects token and amount if is necessary
-    pub fn token_amount(ctx: Context<TokenAmount>) -> Result <()> {
-        let token_amount = &mut ctx.accounts.token_amount;
-        let authority = &mut ctx.accounts.authority;
-
-        token_amount = authority.key();
-
+        trade_info_account.authority = authority.key();  // check?
+        
     Ok(())
     }
 
@@ -64,7 +39,7 @@ mod mercury_v1 {
         let init_user_b = &mut ctx.accounts.init_user_b;
         let authority = &mut ctx.accounts.authority;
 
-        inir_user_b = authority.key();
+        init_user_b = authority.key();
 
     Ok(())
     }
@@ -87,15 +62,16 @@ mod mercury_v1 {
 
 // --------------------------------------------------------------------------
 #[derive(Accounts)]
-pub struct InitUserA<'info> {
+pub struct InitUser<'info> {
     #[account(
         init,
+        seeds = [USER_SEED, authority.key().as_ref()],
         bump,
         payer = authority,
-        space = 8 + 6264
-        seeds =     // is it necessary??
+        space = 8 + ,
+        
     )]
-    pub main_account: Account<'info, MainAccount>,
+    pub user_account: Account<'info, UserAccount>,
     
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -104,75 +80,73 @@ pub struct InitUserA<'info> {
     
 }
 
-#[derive(Account)]
-pub struct WalletUserB<'info> {
+#[derive(Accounts)]
+pub struct InputTradeInfo<'info> {
     #[account(
         init,
-        bumb,
+        seeds = [],     // is it necessary??,
+        bump,
         payer = authority,
-        space = 8 + 
-        seeds =     // is it necessary??
+        space = 8 + ,
+                
     )]
-    pub user_b_account: Account<'info, AccountUserB>,
+    pub trade_info_account: Account<'info, TradeInfoAccount>,
 }
 
-#[derive(Account)]
-pub struct SelectedNftFromB<'info> {
-    #[account(
-        init,
-        bumb,
-        payer = authority,
-        space = 8 + 
-        seeds =     // is it necessary??
-    )]
-    pub selected_nft_from_b: Account<'info, SelectedNftFromB>,
-}
+// #[derive(Account)]
+// pub struct SelectedNftFromB<'info> {
+//     #[account(
+//         init,
+//         bump,
+//         payer = authority,
+//         space = 8 + 
+//         seeds =     // is it necessary??
+//     )]
+//     pub selected_nft_from_b: Account<'info, SelectedNftFromB>,
 
 
-#[derive(Account)]
-pub struct SelectedNftFromA<'info> {
-    #[account(
-        init,
-        bumb,
-        payer = authority,
-        space = 8 + 
-        seeds =     // is it necessary??
-    )]
-    pub selected_nft_from_a: Account<'info, SelectedNftFromA>,
-}
+// #[derive(Account)]
+// pub struct SelectedNftFromA<'info> {
+//     #[account(
+//         init,
+//         bump,
+//         payer = authority,
+//         space = 8 + 
+//         seeds =     // is it necessary??
+//     )]
+//     pub selected_nft_from_a: Account<'info, SelectedNftFromA>,
 
-    #[derive(Account)]
-pub struct TokenAmount<'info> {
-    #[account(
-        init,
-        bumb,
-        payer = authority,
-        space = 8 + 
-        seeds =     // is it necessary??
-    )]
-    pub token_amount: Account<'info, TokenAmount>,
-}
+// #[derive(Account)]
+// pub struct TokenAmount<'info> {
+//     #[account(
+//         init,
+//         bump,
+//         payer = authority,
+//         space = 8 + 
+//         seeds =     // is it necessary??
+//     )]
+//     pub token_amount: Account<'info, TokenAmount>,
 
-    #[derive(Account)]
+#[derive(Accounts)]
 pub struct InitUserB<'info> {
     #[account(
         init,
-        bumb,
+        seeds = [],    // is it necessary??
+        bump,
         payer = authority,
-        space = 8 + 
-        seeds =     // is it necessary??
+        space = 8 + ,        
     )]
     pub init_user_b: Account<'info, InitUserB>,
 }
 
-    #[derive(Account)]
+#[derive(Accounts)]
 pub struct CheckAndDecide<'info> {
     #[account(
         init,
-        bumb,
+        seeds = [],    // is it necessary??
+        bump,
         payer = authority,
-        space = 8 + 
-        seeds =     // is it necessary??
+        space = 8 + ,        
     )]
     pub check_and_decide: Account<'info, CheckAndDecide>,
 }
@@ -180,12 +154,18 @@ pub struct CheckAndDecide<'info> {
 
 // -------------------------------------------------------------------
 #[account]
-pub struct MainAccount {
+pub struct UserAccount {
     pub authority: Pubkey,
     
 }
 
 #[account]
-pub struct AccountUserB {
+pub struct TradeInfoAccount {
+    pub user_a_address: Pubkey,
+    pub user_b_address: String,  // should it be Pubkey as well or is the address from user B that user A write??
+    pub nft_a: String,    // should it be a string or is there another thing?? 
+    pub nft_b: String,    // should it be a string or is there another thing??
+    pub token: String,    // should it be a string or is there another thing??
+    pub token_amount: u16,
     pub authority: Pubkey,
 }
