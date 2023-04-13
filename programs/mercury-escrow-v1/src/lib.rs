@@ -1,171 +1,120 @@
+///Brief meeting summary:
+
+///- Currently trying to do too much at once. Get the MVP of NFT for NFT swaps done first, then add the other stuff later once it's working
+///- There should be 3 functions, create, accept and cancel.
+///- Use contexts and accounts instead of passing in strings
+///- Follow the NFT transfer code that I sent to you
+///- Save the mint_a, mint_b and from_token_account and signer from the create function to use in the cancel/accept functions
 use anchor_lang::prelude::*;
+use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token::{self, Mint, Token, TokenAccount},
+};
 
 declare_id!("AtpSWqNSWAJDt67VJWSJH62XRJARt35a3aJbskJBsMng");
 
-#[constant]
-pub const USER_SEED: &[u8] = b"user";
+// ------------------------------------ INSTRUCTIONS ---------------------------------------------------------
 
 #[program]
-mod mercury_v1 {
+mod mercury_escrow_v1 {
     use super::*;
 
-    // When user A connects his wallet
-    // Maybe here we need to fetch the nft collection from user A
-    pub fn init_user(ctx: Context<InitUser>) -> Result<()> {
-        let user_account = &mut ctx.accounts.user_account;
-        let authority = &mut ctx.accounts.authority;
-
-        user_account.authority = authority.key();
-
-   
-    Ok(())
+    // Create basket function: to create the PDA account (PDA)
+    // the PDA is both the address of the Token Account and the authority of the token account
+    pub fn create_basket(ctx: Context<CreateBasket>) -> Result<()> {
+        Ok(())
     }
 
-    // When user A introduces the user B wallet
-    // I think here should it be all the parameters (user A address, user B address, nft A, nft B, token amount)
-    // Maybe here we should fetch the nft collection from user B
-    pub fn input_trade_info(ctx: Context<InputTradeInfo>, user_b_address: String, nft_a: String, nft_b: String, token: String, token_amount: u16) -> Result <()> {
-        let trade_info_account = &mut ctx.accounts.trade_info_account; // check?
-        let user_account = &mut ctx.accounts.user_account;
-        let authority = &mut ctx.accounts.authority;
+    // Accept function:
+    pub fn accept_swap(ctx: Context<TokenTransfer>) -> Result<()> {
+        let seeds = &["auth".as_bytes(), &[*ctx.bumps.get("auth").unwrap()]];
+        let signer = [&seeds[..]];
 
-        trade_info_account.authority = authority.key();  // check?
-        
-    Ok(())
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            token::Transfer {
+                from: ctx.accounts.from_token_account.to_account_info(),
+                to: ctx.accounts.to_token_account.to_account_info(),
+                authority: ctx.accounts.auth.to_account_info(),
+            },
+            &signer,
+        );
+
+        token::transfer(cpi_ctx, 1)?;
+        Ok(())
     }
 
-    // When user B connects his wallet
-    pub fn init_user_b(ctx: Context<InitUserB>) -> Result <()> {
-        let init_user_b = &mut ctx.accounts.init_user_b;
-        let authority = &mut ctx.accounts.authority;
-
-        init_user_b = authority.key();
-
-    Ok(())
+    // Cancel function:
+    pub fn cancel_swap(ctx: Context<CancelSwap>) -> Result<()> {
+        Ok(())
     }
+}
 
-    // When user B fetchs the transaction created by user A and decide to accept or cancel
-    pub fn check_and_decide(ctx: Context<CheckAndDecide>) -> Result<()> {
+// -------------------------------------- CONTEXT ----------------------------------------
 
-        let check_and_decide = &mut ctx.accounts.check_and_decide;
-        let authority = &mut ctx.accounts.authority;
-
-        check_and_decide = authority.key();
-
-    Ok(())
-    }
- }
-
-
-// We need a cancel function
-// We need to add a timer
-
-// --------------------------------------------------------------------------
 #[derive(Accounts)]
-pub struct InitUser<'info> {
+pub struct CreateBasket<'info> {
     #[account(
         init,
-        seeds = [USER_SEED, authority.key().as_ref()],
+        payer = payer,
+        token::mint = mint,
+        token::authority = auth,
+        seeds = ["auth".as_bytes().as_ref()],
         bump,
-        payer = authority,
-        space = 8 + ,
-        
     )]
-    pub user_account: Account<'info, UserAccount>,
-    
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    
+    pub token_account: Account<'info, TokenAccount>,
+    pub mint: Account<'info, Mint>,
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
-    
+    pub rent: Sysvar<'info, Rent>,
+    /// CHECK: PDA
+    #[account(
+        seeds = ["auth".as_bytes().as_ref()],
+        bump,
+    )]
+    pub auth: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
 }
 
 #[derive(Accounts)]
-pub struct InputTradeInfo<'info> {
+pub struct TokenTransfer<'info> {
+    /// CHECK: token account authority PDA
     #[account(
-        init,
-        seeds = [],     // is it necessary??,
+        seeds = ["auth".as_bytes().as_ref()],
         bump,
-        payer = authority,
-        space = 8 + ,
-                
     )]
-    pub trade_info_account: Account<'info, TradeInfoAccount>,
-}
-
-// #[derive(Account)]
-// pub struct SelectedNftFromB<'info> {
-//     #[account(
-//         init,
-//         bump,
-//         payer = authority,
-//         space = 8 + 
-//         seeds =     // is it necessary??
-//     )]
-//     pub selected_nft_from_b: Account<'info, SelectedNftFromB>,
-
-
-// #[derive(Account)]
-// pub struct SelectedNftFromA<'info> {
-//     #[account(
-//         init,
-//         bump,
-//         payer = authority,
-//         space = 8 + 
-//         seeds =     // is it necessary??
-//     )]
-//     pub selected_nft_from_a: Account<'info, SelectedNftFromA>,
-
-// #[derive(Account)]
-// pub struct TokenAmount<'info> {
-//     #[account(
-//         init,
-//         bump,
-//         payer = authority,
-//         space = 8 + 
-//         seeds =     // is it necessary??
-//     )]
-//     pub token_amount: Account<'info, TokenAmount>,
-
-#[derive(Accounts)]
-pub struct InitUserB<'info> {
+    pub auth: UncheckedAccount<'info>,
     #[account(
-        init,
-        seeds = [],    // is it necessary??
-        bump,
-        payer = authority,
-        space = 8 + ,        
+        mut,
+        token::mint = mint,
+        token::authority = auth
     )]
-    pub init_user_b: Account<'info, InitUserB>,
-}
-
-#[derive(Accounts)]
-pub struct CheckAndDecide<'info> {
+    pub from_token_account: Account<'info, TokenAccount>,
     #[account(
-        init,
-        seeds = [],    // is it necessary??
-        bump,
-        payer = authority,
-        space = 8 + ,        
+        init_if_needed,
+        payer = payer,
+        associated_token::mint = mint,
+        associated_token::authority = payer
     )]
-    pub check_and_decide: Account<'info, CheckAndDecide>,
+    pub to_token_account: Account<'info, TokenAccount>,
+    pub mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
+// -------------------------------------- ACCOUNTS (States)----------------------------------------
 
-// -------------------------------------------------------------------
-#[account]
-pub struct UserAccount {
-    pub authority: Pubkey,
-    
-}
-
-#[account]
-pub struct TradeInfoAccount {
-    pub user_a_address: Pubkey,
-    pub user_b_address: String,  // should it be Pubkey as well or is the address from user B that user A write??
-    pub nft_a: String,    // should it be a string or is there another thing?? 
-    pub nft_b: String,    // should it be a string or is there another thing??
-    pub token: String,    // should it be a string or is there another thing??
-    pub token_amount: u16,
-    pub authority: Pubkey,
-}
+// #[account]
+// pub struct BasketAccount {
+//     pub user_a_address: Pubkey,
+//     pub user_b_address: Pubkey,
+//     pub nft_a: ,
+//     pub nft_b: ,
+//     pub authority: Pubkey,
+// }
