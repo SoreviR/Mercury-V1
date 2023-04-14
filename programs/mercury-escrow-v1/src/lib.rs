@@ -5,32 +5,51 @@
 ///- Use contexts and accounts instead of passing in strings
 ///- Follow the NFT transfer code that I sent to you
 ///- Save the mint_a, mint_b and from_token_account and signer from the create function to use in the cancel/accept functions
+
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, Mint, Token, TokenAccount},
+    token::{self, Mint, MintTo, Token, TokenAccount},
 };
 
-declare_id!("AtpSWqNSWAJDt67VJWSJH62XRJARt35a3aJbskJBsMng");
+declare_id!("7tLrzaraBbJgRqFHpwCKiwhv7pZoE9xMKwDkjKU4sxJQ");
+
 
 // ------------------------------------ INSTRUCTIONS ---------------------------------------------------------
 
+
 #[program]
-mod mercury_escrow_v1 {
+mod mercury_v1 {
     use super::*;
 
-    // Create basket function: to create the PDA account (PDA)
-    // the PDA is both the address of the Token Account and the authority of the token account
+// Create basket function: to create the PDA account (PDA)
+// the PDA is both the address of the Token Account and the authority of the token account
     pub fn create_basket(ctx: Context<CreateBasket>) -> Result<()> {
-        Ok(())
+
+        // Create the MintTo struct for our context
+        let cpi_accounts = MintTo {
+            mint: ctx.accounts.mint.to_account_info(),
+            to: ctx.accounts.token_account.to_account_info(),
+            authority: ctx.accounts.authority.to_account_info(), // should be payer,  authority or auth? from context struct
+        };
+        
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        // Create the CpiContext we need for the request
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+
+        // Execute anchor's helper function to mint tokens
+        token::mint_to(cpi_ctx, 1)?;
+        
+        Ok(());
+        
     }
 
-    // Accept function:
-    pub fn accept_swap(ctx: Context<TokenTransfer>) -> Result<()> {
+    
+// Accept function:
+    pub fn accept_swap(ctx:Context<TokenTransfer>) -> Result<()> {
         let seeds = &["auth".as_bytes(), &[*ctx.bumps.get("auth").unwrap()]];
         let signer = [&seeds[..]];
-
+    
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             token::Transfer {
@@ -40,14 +59,17 @@ mod mercury_escrow_v1 {
             },
             &signer,
         );
-
+    
         token::transfer(cpi_ctx, 1)?;
-        Ok(())
+        Ok(());
     }
 
-    // Cancel function:
-    pub fn cancel_swap(ctx: Context<CancelSwap>) -> Result<()> {
-        Ok(())
+
+// Cancel function:
+    pub fn cancel_swap(ctx:Context<CancelSwap>) -> Result <()> {
+
+
+        Ok(());
     }
 }
 
@@ -55,7 +77,7 @@ mod mercury_escrow_v1 {
 
 #[derive(Accounts)]
 pub struct CreateBasket<'info> {
-    #[account(
+   #[account(
         init,
         payer = payer,
         token::mint = mint,
@@ -63,7 +85,7 @@ pub struct CreateBasket<'info> {
         seeds = ["auth".as_bytes().as_ref()],
         bump,
     )]
-    pub token_account: Account<'info, TokenAccount>,
+    pub token_account: Account<'info, TokenAccount>,  
     pub mint: Account<'info, Mint>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -77,6 +99,7 @@ pub struct CreateBasket<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 }
+
 
 #[derive(Accounts)]
 pub struct TokenTransfer<'info> {
@@ -108,7 +131,23 @@ pub struct TokenTransfer<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-// -------------------------------------- ACCOUNTS (States)----------------------------------------
+#[derive(Accounts)]
+pub struct CancelSwap<'info> {
+    #[account(
+        seeds = ["auth".as_bytes().as_ref()],
+        bump,
+    )]
+}
+
+
+
+
+
+
+
+
+
+// -------------------------------------- ACCOUNTS (States)---------------------------------------- 
 
 // #[account]
 // pub struct BasketAccount {
